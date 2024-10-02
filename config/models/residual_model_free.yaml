@@ -1,0 +1,25 @@
+encoder:
+  _target_: mad_td.nn.model.IdentityEncoder
+  feature_dim: ${env.state_shape}
+
+actor:
+  _target_: mad_td.nn.actor.EncoderDecoderResidualActor
+  feature_dim: 512
+  output_dim: ???
+  num_blocks: 2
+
+critic:
+  _target_: mad_td.nn.critic.EncoderDecoderBinnedCritic
+  feature_dim: 512
+  num_bins: ${algo.num_bins}
+  vmin: ${algo.vmin}
+  vmax: ${algo.vmax}
+  num_blocks: 2
+  add_zero_prior: True
+  use_symlog: False
+  single_critic: False
+
+latent_model:
+  _target_: mad_td.nn.model.DummyLatentModel
+  feature_dim: [20]
+  output_dim: ${models.encoder.feature_dim}

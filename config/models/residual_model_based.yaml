@@ -1,0 +1,27 @@
+encoder:
+  _target_: mad_td.nn.model.ResidualEncoder
+  feature_dim: 1024
+  num_blocks: 1
+
+actor:
+  _target_: mad_td.nn.actor.DecoderResidualActor
+  feature_dim: 512
+  output_dim: ???
+  num_blocks: 1
+
+critic:
+  _target_: mad_td.nn.critic.EncoderDecoderBinnedCritic
+  feature_dim: 512
+  num_bins: ${algo.num_bins}
+  vmin: ${algo.vmin}
+  vmax: ${algo.vmax}
+  num_blocks: 2
+  add_zero_prior: True
+  use_symlog: False
+  single_critic: False
+
+latent_model:
+  _target_: mad_td.nn.model.ResidualLatentModel
+  feature_dim: 512
+  num_blocks: 1
+  output_dim: ${models.encoder.feature_dim}

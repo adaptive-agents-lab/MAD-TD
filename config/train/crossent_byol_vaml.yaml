@@ -1,0 +1,25 @@
+defaults:
+  - base_train
+
+seed: 123
+tqdm_interval: 1
+num_seeds: 1
+init_steps: 5000
+env_steps: 1
+update_steps: 1
+total_steps: 1000000
+action_samples: 1
+batch_size: 512
+log_freq: 100
+save_freq: 1000
+eval_sample_ratio: 0.05
+eval_freq: 100
+eval_episodes: 10
+log_adversarial: False
+log_physics: False
+save_path: "checkpoint"
+loss_functions:
+  - byol_crossent
+  - crossent_vaml
+  # - regularize
+  # - cosine

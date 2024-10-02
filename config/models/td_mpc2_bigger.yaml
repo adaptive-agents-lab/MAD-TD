@@ -1,0 +1,29 @@
+actor:
+  _target_: mad_td.nn.actor.TDMPC2Actor
+
+  feature_dim: [512, 512]
+  output_dim: ???
+
+critic:
+  _target_: mad_td.nn.critic.BinnedTDMPC2Critic
+
+  feature_dim: [512, 512]
+  num_bins: 151
+  vmin: ${algo.vmin}
+  vmax: ${algo.vmax}
+  use_symlog: ${algo.use_symlog}
+  add_zero_prior: True
+  single_critic: False
+  use_residual: False
+
+encoder:
+  _target_: mad_td.nn.model.TDMPC2Encoder
+
+  hidden_dim: [512, 512]
+  feature_dim: 512
+
+latent_model:
+  _target_: mad_td.nn.model.TDMPC2LatentModel
+
+  feature_dim: [512, 512]
+  output_dim: ${models.encoder.feature_dim}

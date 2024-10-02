@@ -1,0 +1,20 @@
+defaults:
+  - train: crossent_byol_vaml
+  - algo: base_mad_td
+  - env: dmc
+  - models: td_mpc2
+  - logger: default
+  - _self_
+
+debug: False
+name: mad_td
+name_template: "{critic}-{mpc}-{mb}-{model-loss-short}-{mfenc}"
+
+cluster_checkpointing: False
+alt_path: .
+
+hydra:
+  run:
+    dir: ./outputs/${now:%Y-%m-%d}/${now:%H-%M-%S}
+  job:
+    chdir: True

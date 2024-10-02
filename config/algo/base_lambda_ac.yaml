@@ -1,0 +1,36 @@
+actor_learning_rate: 0.0003
+critic_learning_rate: 0.0003
+encoder_learning_rate: 0.0001
+model_learning_rate: 0.0003
+gradient_clip: 10.
+gamma: 0.99
+length_training_rollout: 1
+tau: 0.99
+quantile: False
+c51: False
+binned_regression_encoding: 'hl-gauss' # 'hl-gauss' or 'two-hot'
+use_symlog: False
+update_encoder_with_critic_loss: True
+vmin: -300
+vmax: 300
+num_bins: 151
+use_target_encoder: False
+batch_size: ${train.batch_size}
+proportion_real: 0.95
+
+use_resetting: False
+reset_interval: 200000
+use_spr_reset: False
+slow_actor: False
+slow_model: True
+use_daml: True
+use_model_loss: True
+
+# mpc parameters
+use_mpc: False
+num_policy_mpc_samples: 1
+num_mpc_samples: 512
+mpc_iterations: 6
+mpc_top_k: 64
+mpc_temperature: 0.5
+use_cheap_mpc: False

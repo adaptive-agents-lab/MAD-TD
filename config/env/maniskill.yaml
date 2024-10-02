@@ -1,0 +1,6 @@
+defaults:
+  - maniskill_env
+
+name: PickCube-v1
+num_envs: ${train.num_seeds}
+state_shape: 0

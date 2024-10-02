@@ -1,0 +1,6 @@
+defaults:
+  - myo_env
+
+name: myo-key-turn
+num_envs: ${train.num_seeds}
+state_shape: 0
