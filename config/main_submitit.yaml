@@ -1,0 +1,46 @@
+defaults:
+  - train: crossent_byol_vaml
+  - algo: base_lambda_ac
+  - env: dmc
+  - models: td_mpc2
+  - logger: claas
+  - override hydra/launcher: submitit_slurm
+  - _self_
+
+debug: False
+name: lambda_ac
+name_template: "{critic}-{mpc}-{mb}-{model-loss-short}-{mfenc}"
+
+cluster_checkpointing: True
+alt_path:
+
+train:
+  tqdm_interval: 1000000
+
+hydra:
+  job:
+    chdir: True
+    env_set:
+      MUJOCO_GL: glfw
+  launcher:
+    timeout_min: 5750
+    max_num_timeout: 10
+    submitit_folder: /h/voelcker/submitit
+    qos: scavenger
+    # account: deadline
+    gres: gpu:1
+    partition: rtx6000,a40,t4v1,t4v2
+    mem_gb: 64
+    cpus_per_task: 16
+    setup:
+      - "source ~/.bashrc"
+      - "module load cuda-11.8"
+      - "export MUJOCO_PY_BYPASS_LOCK=True"
+      - "export LD_LIBRARY_PATH=/pkgs/cudnn-8.8/lib:$LD_LIBRARY_PATH"
+      - "export LD_LIBRARY_PATH=/pkgs/cuda-11.8/extras/CUPTI/lib64/:$LD_LIBRARY_PATH"
+      - "export MUJOCO_GL=egl"
+      - "cd ~/Code/project_codebases/lambda-ac-simple"
+      - "source ~/venvs/uv-lambda/bin/activate"
+      - "export PYTHONPATH=/h/voelcker/Code/project_codebases/lambda-ac-simple:$PYTHONPATH"
+      - "hostname"
+      - "nvidia-smi"
