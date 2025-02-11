@@ -1,3 +1,5 @@
+batch_size: ${train.batch_size}
+
 actor_learning_rate: 0.0003
 critic_learning_rate: 0.0003
 encoder_learning_rate: 0.0001
@@ -15,7 +17,6 @@ vmin: -300
 vmax: 300
 num_bins: 151
 use_target_encoder: False
-batch_size: ${train.batch_size}
 proportion_real: 0.95
 
 use_resetting: False

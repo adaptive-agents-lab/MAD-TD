@@ -19,7 +19,5 @@ class TrainHyperparams:
     eval_freq: int
     eval_episodes: int
     save_path: str
-    log_adversarial: bool
-    log_physics: bool
     loss_functions: List[str]
     eval_batches: int = 100

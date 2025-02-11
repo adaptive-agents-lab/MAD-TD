@@ -15,8 +15,6 @@ save_freq: 1000
 eval_sample_ratio: 0.05
 eval_freq: 100
 eval_episodes: 10
-log_adversarial: False
-log_physics: False
 save_path: "checkpoint"
 loss_functions:
   - byol_crossent

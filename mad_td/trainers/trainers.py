@@ -255,176 +255,108 @@ class MultiSeedTrainer:
             pbar.update(self.steps_done)
             while self.steps_done <= total_steps:
                 self.reset_if_time()
-                # if self.steps_done == 60:
-                #     jax.profiler.start_trace("/h/voelcker/jax_trace") #, create_perfetto_link=True)
-                # if self.steps_done == 61:
-                #     jax.profiler.stop_trace()
-                with jax.profiler.TraceAnnotation(f"train_step_{self.steps_done}"):
-                    for _ in range(self.train_hyperparams.env_steps):
-                        # key logic
-                        with jax.profiler.TraceAnnotation(
-                            f"get_action_{self.steps_done}"
-                        ):
-                            key, step_key = jax.random.split(key)
-                            step_keys = jax.random.split(step_key, num_seeds)
-                            if np.any(done):
-                                state = self.env_reset(step_keys)
-                                done = False
-                                self.logger.log(
-                                    multi_seed_return_dict(
-                                        {"reward": rewards},
-                                        self.train_hyperparams.num_seeds,
-                                    ),
-                                    self.steps_done,
-                                )
-                                self.logger.log(
-                                    {"mean_reward": float(np.mean(rewards))},
-                                    self.steps_done,
-                                )
-                                rewards = 0
-                            key, action_key = jax.random.split(key)
-                            action_keys = jax.random.split(action_key, num_seeds)
-                            action, action_info = vmaped_action(
-                                state.obs * self.algo_hyperparams.obs_scale,
-                                self.models.encoder,
-                                self.models.actor,
-                                self.models.critic,
-                                self.models.latent_model,
-                                0.3 if self.algo_hyperparams.use_mpc else 0.1,
-                                self.steps_done < self.train_hyperparams.init_steps,
-                                action_keys,
-                            )
-                            action_info_dicts.append(action_info)
-                        with jax.profiler.TraceAnnotation(
-                            f"env_step_{self.steps_done}"
-                        ):
-                            next_state, reward, done = self.env_step(
-                                step_keys, state.state, action
-                            )
-                            rewards += reward
-                        with jax.profiler.TraceAnnotation(f"insert_{self.steps_done}"):
-                            replay_buffer_choice = np.random.choice([True, False], p=[1-self.train_hyperparams.eval_sample_ratio, self.train_hyperparams.eval_sample_ratio])
-                            if replay_buffer_choice:
-                                self.replay_buffer.insert(
-                                    state.obs * self.algo_hyperparams.obs_scale,
-                                    action,
-                                    reward * self.algo_hyperparams.reward_scale,
-                                    done,
-                                    next_state.obs * self.algo_hyperparams.obs_scale,
-                                    (
-                                        np.stack(state.state["internal_state"])
-                                        if self.train_hyperparams.log_physics
-                                        else None
-                                    ),
-                                )
-                            else:
-                                self.eval_replay_buffer.insert(
-                                    state.obs * self.algo_hyperparams.obs_scale,
-                                    action,
-                                    reward * self.algo_hyperparams.reward_scale,
-                                    done,
-                                    next_state.obs * self.algo_hyperparams.obs_scale,
-                                    (
-                                        np.stack(state.state["internal_state"])
-                                        if self.train_hyperparams.log_physics
-                                        else None
-                                    ),
-                                )
-                        state = next_state
-                    self.steps_done += self.train_hyperparams.env_steps
-                    if self.steps_done > self.train_hyperparams.init_steps:
-                        # split all required keys
-                        key, model_key = jax.random.split(key)
-                        # sample batches
-                        batch = self.replay_buffer.sample(
-                            self.train_hyperparams.batch_size, model_key, self.train_hyperparams.update_steps  # type: ignore
+                for _ in range(self.train_hyperparams.env_steps):
+                    # key logic
+                    key, step_key = jax.random.split(key)
+                    step_keys = jax.random.split(step_key, num_seeds)
+                    if np.any(done):
+                        state = self.env_reset(step_keys)
+                        done = False
+                        self.logger.log(
+                            multi_seed_return_dict(
+                                {"reward": rewards},
+                                self.train_hyperparams.num_seeds,
+                            ),
+                            self.steps_done,
                         )
-                        # update models
-                        self.models, return_dict = self._update_fn(
-                            self.models,
-                            batch,
-                            key,
+                        self.logger.log(
+                            {"mean_reward": float(np.mean(rewards))},
+                            self.steps_done,
                         )
-                        return_dicts.append(return_dict)
-
-                        # logging
-                        if self.steps_done % self.train_hyperparams.log_freq == 0:
-                            if self.train_hyperparams.log_adversarial:
-                                batch = self.replay_buffer.sample(
-                                    5000,
-                                    model_key,
-                                    1,
-                                )
-                                adv_key = jax.random.split(
-                                    key, self.train_hyperparams.num_seeds
-                                )
-                                adversarial_metrics = jax.jit(
-                                    jax.vmap(compute_all_adversarial_metrics)
-                                )(
-                                    adv_key,
-                                    self.models,
-                                    batch,
-                                )
-
-                                self.logger.log(
-                                    multi_seed_return_dict(
-                                        adversarial_metrics,
-                                        self.train_hyperparams.num_seeds,
-                                    ),
-                                    self.steps_done,
-                                )
-                            self.logger.log(
-                                multi_seed_return_dict(
-                                    action_info, self.train_hyperparams.num_seeds
-                                ),
-                                self.steps_done,
-                            )
-                            action_info_dicts = tree_list_mean(action_info_dicts)
-                            action_info_dicts = multi_seed_return_dict(
-                                action_info_dicts, self.train_hyperparams.num_seeds
-                            )
-                            self.logger.log(action_info_dicts, self.steps_done)
-                            del action_info_dicts
-                            action_info_dicts = []
-                            return_dict = tree_list_mean(return_dicts)
-                            return_dict = multi_seed_return_dict(
-                                return_dict, self.train_hyperparams.num_seeds
-                            )
-                            self.logger.log(return_dict, self.steps_done)
-                            del return_dicts
-                            return_dicts = []
-                        if self.steps_done % self.train_hyperparams.eval_freq == 0:
-                            print("Conducting big eval")
-                            eval_batches = self.eval_replay_buffer.sample(
-                                self.train_hyperparams.batch_size,
-                                model_key,
-                                self.train_hyperparams.eval_batches,
-                            )
-                            buffer_eval_dicts, on_policy_eval_dicts = eval_utils.eval_on_policy_batches(
-                                eval_batches,
-                                self.models,
-                                self.eval_env,
-                                self.algo_hyperparams,
-                                self.batch_shape
-                            )
-                            eval_dict_1 = multi_seed_return_dict(
-                                tree_list_mean(buffer_eval_dicts), self.train_hyperparams.num_seeds
-                            )
-                            eval_dict_2 = multi_seed_return_dict(
-                                tree_list_mean(on_policy_eval_dicts), self.train_hyperparams.num_seeds
-                            )
-                            self.logger.log(eval_dict_1, self.steps_done)
-                            self.logger.log(eval_dict_2, self.steps_done)
-
-                        if self.steps_done % 500 == 0:
-                            self.logger.flush()
-                        if self.steps_done % self.train_hyperparams.save_freq == 0:
-                            self.save(self.train_hyperparams.save_path)
-                    if self.steps_done % self.train_hyperparams.tqdm_interval == 0:
-                        pbar.update(
-                            self.train_hyperparams.tqdm_interval
-                            * self.train_hyperparams.env_steps
+                        rewards = 0
+                    key, action_key = jax.random.split(key)
+                    action_keys = jax.random.split(action_key, num_seeds)
+                    action, action_info = vmaped_action(
+                        state.obs * self.algo_hyperparams.obs_scale,
+                        self.models.encoder,
+                        self.models.actor,
+                        self.models.critic,
+                        self.models.latent_model,
+                        0.3 if self.algo_hyperparams.use_mpc else 0.1,
+                        self.steps_done < self.train_hyperparams.init_steps,
+                        action_keys,
+                    )
+                    action_info_dicts.append(action_info)
+                    next_state, reward, done = self.env_step(
+                        step_keys, state.state, action
+                    )
+                    rewards += reward
+                    replay_buffer_choice = np.random.choice([True, False], p=[1-self.train_hyperparams.eval_sample_ratio, self.train_hyperparams.eval_sample_ratio])
+                    if replay_buffer_choice:
+                        self.replay_buffer.insert(
+                            state.obs * self.algo_hyperparams.obs_scale,
+                            action,
+                            reward * self.algo_hyperparams.reward_scale,
+                            done,
+                            next_state.obs * self.algo_hyperparams.obs_scale,
                         )
+                    else:
+                        self.eval_replay_buffer.insert(
+                            state.obs * self.algo_hyperparams.obs_scale,
+                            action,
+                            reward * self.algo_hyperparams.reward_scale,
+                            done,
+                            next_state.obs * self.algo_hyperparams.obs_scale,
+                        )
+                    state = next_state
+                self.steps_done += self.train_hyperparams.env_steps
+                if self.steps_done > self.train_hyperparams.init_steps:
+                    # split all required keys
+                    key, model_key = jax.random.split(key)
+                    # sample batches
+                    batch = self.replay_buffer.sample(
+                        self.train_hyperparams.batch_size, model_key, self.train_hyperparams.update_steps  # type: ignore
+                    )
+                    # update models
+                    self.models, return_dict = self._update_fn(
+                        self.models,
+                        batch,
+                        key,
+                    )
+                    return_dicts.append(return_dict)
+
+                    # logging
+                    if self.steps_done % self.train_hyperparams.log_freq == 0:
+                        self.logger.log(
+                            multi_seed_return_dict(
+                                action_info, self.train_hyperparams.num_seeds
+                            ),
+                            self.steps_done,
+                        )
+                        action_info_dicts = tree_list_mean(action_info_dicts)
+                        action_info_dicts = multi_seed_return_dict(
+                            action_info_dicts, self.train_hyperparams.num_seeds
+                        )
+                        self.logger.log(action_info_dicts, self.steps_done)
+                        del action_info_dicts
+                        action_info_dicts = []
+                        return_dict = tree_list_mean(return_dicts)
+                        return_dict = multi_seed_return_dict(
+                            return_dict, self.train_hyperparams.num_seeds
+                        )
+                        self.logger.log(return_dict, self.steps_done)
+                        del return_dicts
+                        return_dicts = []
+
+                    if self.steps_done % 500 == 0:
+                        self.logger.flush()
+                    if self.steps_done % self.train_hyperparams.save_freq == 0:
+                        self.save(self.train_hyperparams.save_path)
+                if self.steps_done % self.train_hyperparams.tqdm_interval == 0:
+                    pbar.update(
+                        self.train_hyperparams.tqdm_interval
+                        * self.train_hyperparams.env_steps
+                    )
 
 
 def get_policy_action(

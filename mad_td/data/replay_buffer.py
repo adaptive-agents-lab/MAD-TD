@@ -21,7 +21,6 @@ class ReplayBuffer(Dataset):
     rollout_length: int
     is_img_obs: bool = False
     is_discrete_action: bool = False
-    log_physics: bool = True
 
     def __post_init__(
         self,
@@ -56,18 +55,6 @@ class ReplayBuffer(Dataset):
         self.saved_index = 0
         self.saved_counter = 0
 
-        if self.log_physics:
-            prng = jax.random.PRNGKey(0)
-            keys = jax.random.split(prng, self.num_seeds)
-            reset_state = self.env.get_n_reset()(keys=keys)
-            self.physics = np.empty(
-                (
-                    self.num_seeds,
-                    self.capacity,
-                    *reset_state.state["internal_state"][0].shape,
-                ),
-                dtype=np.float32,
-            )
 
     def insert(
         self,
@@ -76,7 +63,6 @@ class ReplayBuffer(Dataset):
         reward: jax.Array,
         done: jax.Array,
         next_state: jax.Array,
-        physics: jax.Array | None = None,
     ):
         state = np.array(state)
         action = np.array(action)
@@ -89,10 +75,6 @@ class ReplayBuffer(Dataset):
         self.rewards[:, self.insert_index, 0] = reward
         self.masks[:, self.insert_index, 0] = np.logical_not(done)
         self.next_states[:, self.insert_index] = next_state
-
-        if self.log_physics:
-            assert physics is not None
-            self.physics[:, self.insert_index] = physics
 
         self.insert_index = (self.insert_index + 1) % self.capacity
         self.filled = min(self.filled + 1, self.capacity)
@@ -117,26 +99,14 @@ class ReplayBuffer(Dataset):
         masks = self.masks[:, expanded_idxs]
         masks = np.cumprod(masks, axis=-2)
 
-        if self.log_physics:
-            physics = self.physics[:, idxs]
-            return RLBatch(
-                state=states,
-                action=actions,
-                reward=rewards,
-                next_state=next_states,
-                mask=masks,
-                idxs=np.ones((self.num_seeds,1,1)) * idxs,
-                physics_state=physics,
-            )
-        else:
-            return RLBatch(
-                state=states,
-                action=actions,
-                reward=rewards,
-                next_state=next_states,
-                idxs=np.ones((self.num_seeds,1,1)) * idxs,
-                mask=masks,
-            )
+        return RLBatch(
+            state=states,
+            action=actions,
+            reward=rewards,
+            next_state=next_states,
+            idxs=np.ones((self.num_seeds,1,1)) * idxs,
+            mask=masks,
+        )
 
     def get_dummy_batch(self, num_samples=None, batch_size=0) -> RLBatch:
         if num_samples is None:
@@ -167,26 +137,14 @@ class ReplayBuffer(Dataset):
             masks = np.cumprod(masks, axis=-2)
             sample_idx += batch_size
 
-            if self.log_physics:
-                physics = self.physics[:, idxs]
-                yield RLBatch(
-                    state=states,
-                    action=actions,
-                    reward=rewards,
-                    next_state=next_states,
-                    mask=masks,
-                    idxs=idxs,
-                    physics_state=physics,
-                )
-            else:
-                yield RLBatch(
-                    state=states,
-                    action=actions,
-                    reward=rewards,
-                    next_state=next_states,
-                    idxs=idxs,
-                    mask=masks,
-                )
+            yield RLBatch(
+                state=states,
+                action=actions,
+                reward=rewards,
+                next_state=next_states,
+                idxs=idxs,
+                mask=masks,
+            )
 
     def save(self, path):
         path = os.path.join(path, "buffer")

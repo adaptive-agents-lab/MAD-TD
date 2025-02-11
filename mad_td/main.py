@@ -116,6 +116,8 @@ def run(cfg):
     print(f"Loading from {cfg.alt_path}")
     print(f"Logging to {os.getcwd()}")
 
+    print(cfg.algo)
+
     train_cfg: cfgs.TrainHyperparams = OmegaConf.to_object(cfg.train)  # type: ignore
     env_cfg: cfgs.EnvConfig = OmegaConf.to_object(cfg.env)  # type: ignore
     algo_cfg: cfgs.MadTdHyperparams = OmegaConf.to_object(cfg.algo)  # type: ignore
@@ -135,7 +137,6 @@ def run(cfg):
         train_cfg.num_seeds,
         train_cfg.total_steps,
         max(algo_cfg.length_training_rollout, 1),
-        log_physics=train_cfg.log_physics,
     )
     eval_replay_buffer = ReplayBuffer(
         env.get_observation_space(),
@@ -145,7 +146,6 @@ def run(cfg):
         # factor 2 is a safety margin
         int(2 * train_cfg.total_steps * train_cfg.eval_sample_ratio),
         max(algo_cfg.length_training_rollout, 1),
-        log_physics=train_cfg.log_physics,
     )
 
     logger = WandBLogger(
