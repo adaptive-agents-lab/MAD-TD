@@ -120,6 +120,7 @@ def run(cfg):
 
     train_cfg: cfgs.TrainHyperparams = OmegaConf.to_object(cfg.train)  # type: ignore
     env_cfg: cfgs.EnvConfig = OmegaConf.to_object(cfg.env)  # type: ignore
+    print(cfg.algo)
     algo_cfg: cfgs.MadTdHyperparams = OmegaConf.to_object(cfg.algo)  # type: ignore
 
     # setup models

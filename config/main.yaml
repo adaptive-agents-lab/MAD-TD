@@ -3,7 +3,7 @@ defaults:
   - algo: base_mad_td
   - env: dmc
   - models: td_mpc2
-  - logger: default
+  - logger: wandb
   - _self_
 
 debug: False

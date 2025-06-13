@@ -20,10 +20,7 @@ from mad_td.cfgs.data_config import (
     EnvConfig,
     GymnaxEnvConfig,
     ManiSkillEnvConfig,
-    MyoSuiteEnvConfig,
 )
-
-from mad_td.third_party.myosuit.wrappers import make_env_myo
 
 
 @struct.dataclass
@@ -269,50 +266,6 @@ class ManiSkillEnv(Env):
         return self.env.action_space.shape
 
 
-@dataclass
-class MyoSuiteEnv(Env):
-    config: MyoSuiteEnvConfig
-
-    def __post_init__(self):
-        self.env = gymnasium.vector.AsyncVectorEnv(
-            [lambda: make_env_myo(self.config) for _ in range(self.config.num_envs)]
-        )
-
-    def get_reset(self):
-        def _reset(keys):
-            keys = onp.array(keys, dtype=onp.uint32)[:, 0].tolist()
-            obs, _ = self.env.reset(seed=keys)
-            obs = jnp.array(obs)
-            return EnvState(obs, None)
-
-        return _reset
-
-    def get_n_reset(self):
-        return self.get_reset()
-
-    def get_step(self, key):
-        def _step(key, state, action):
-            action = onp.array(action)
-            action = onp.clip(action, -1, 1)
-            obs, reward, truncated, terminated, info = self.env.step(action)
-            obs = jnp.array(obs)
-            reward = jnp.array(reward)
-            truncated = jnp.array(truncated)
-            terminated = jnp.array(terminated)
-            return EnvState(obs, None), reward, jnp.logical_or(truncated, terminated)
-
-        return _step
-
-    def get_n_step(self, key):
-        return self.get_step(key)
-
-    def get_observation_space(self):
-        return self.env.observation_space.shape[1:]
-
-    def get_action_space(self):
-        return self.env.action_space.shape[1:]
-
-
 def make_env(env_config: EnvConfig) -> Env:
     if isinstance(env_config, GymnaxEnvConfig):
         env = GymnaxEnv(env_config)
@@ -322,8 +275,6 @@ def make_env(env_config: EnvConfig) -> Env:
         env = DMCEnv(env_config)
     elif isinstance(env_config, ManiSkillEnvConfig):
         env = ManiSkillEnv(env_config)
-    elif isinstance(env_config, MyoSuiteEnvConfig):
-        env = MyoSuiteEnv(env_config)
     else:
         raise ValueError(f"Unknown env config {env_config}")
     return env
