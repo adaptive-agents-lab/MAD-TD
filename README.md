@@ -8,6 +8,25 @@ Please ensure that you have a cuda12 capable GPU installed. Other GPUs can work,
 All dependencies are best installed via pip using the provided `pyproject.toml` and we strongly recommend using [uv](https://docs.astral.sh/uv/).
 With this tool you can simply execute `uv run mad_td/main.py` and all requirements will be installed in a virtual environment.
 
+If you get the following error
+
+```
+Using Python 3.12.6
+Creating virtual environment at: .venv
+Installed 98 packages in 58ms
+Traceback (most recent call last):
+  File "mad_td/main.py", line 10, in <module>
+    from mad_td import cfgs
+ModuleNotFoundError: No module named 'mad_td'
+```
+
+you can fix it by running
+
+```
+source .venv/bin/activate
+uv pip install -e .
+```
+
 ## Paper experiments
 
 To run the main experiments, the most important parameters are:
